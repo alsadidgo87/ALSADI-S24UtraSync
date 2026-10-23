@@ -1,0 +1,11 @@
+ALSADI AlarmSync — Compilación automática en GitHub
+
+1. Crea un repositorio PRIVADO vacío de nombre ALSADI-AlarmSync en github.com/new.
+2. Sube EL CONTENIDO de esta carpeta (incluida .github/workflows/android-apk.yml) al repositorio. Puedes usar Add file > Upload files en GitHub. La carpeta .github es oculta en algunos exploradores: verifica que se subió.
+3. Abre la pestaña Actions. Si GitHub te pide habilitar Actions para ese repositorio, habilítalas.
+4. El workflow "Compilar APK ALSADI AlarmSync" se activa al subir archivos a main/master. También puedes usar Run workflow.
+5. En la ejecución finalizada correctamente, descarga el artifact "ALSADI-AlarmSync-APK", descomprímelo e instala app-debug.apk en tu Samsung.
+
+No desinstales Mi Fitness. Habilita notificaciones de ALSADI AlarmSync en Mi Fitness. La entrega de notificaciones a Redmi Watch 5 Active necesita verificación física.
+
+Este proyecto se compila como APK debug (firmada automáticamente por el runner para instalación de prueba). NO publica nada a Play Store ni instala software en tu cuenta.

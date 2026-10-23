@@ -1,0 +1,19 @@
+ALSADI AlarmSync 1.0.0 - Proyecto Android Studio
+
+1. Abrir esta carpeta desde Android Studio (Open).
+2. Permitir que descargue Gradle y el SDK de Android 35 si es necesario.
+3. Build > Build APK(s) o Run sobre el Samsung Galaxy S24 Ultra.
+4. Conceder acceso a notificaciones y permiso para publicar avisos.
+5. Mantener Mi Fitness y su vinculación Bluetooth tal como están.
+6. Activar en Mi Fitness las notificaciones de ALSADI AlarmSync.
+7. Probar la notificación desde la aplicación y verificar FÍSICAMENTE el Redmi.
+8. Crear una alarma próxima en Samsung Clock, esperar que suene y revisar el historial.
+
+QUÉ HACE: monitorea notificaciones accesibles de Samsung Clock/Google Clock que parezcan alarmas activas y publica una notificación de ALSADI AlarmSync para que Mi Fitness pueda intentar reenviarla.
+QUÉ NO HACE: acceder a la base de datos privada de Samsung Clock, cargar horarios de alarmas en el firmware del Redmi, comunicarse con su protocolo Bluetooth, apagar/posponer alarmas desde el reloj o confirmar que éste vibró.
+
+Si la prueba llega al reloj, pero una alarma real no aparece en el historial, Samsung Clock probablemente no ha expuesto una notificación de alarma que cumpla el detector. Si sí aparece en el historial, pero el reloj no muestra aviso, revisar notificaciones de Mi Fitness, modos no molestar y batería.
+
+SIN GARANTÍA de entrega de alarmas: no usar como único mecanismo para despertarse o recibir avisos importantes.
+
+Archivos Gradle: esta entrega usa versiones fijadas de AGP/Kotlin, pero no trae gradle-wrapper.jar ni ejecutables gradlew. Abrir y sincronizar desde Android Studio usando una instalación local de Gradle compatible, o generar el wrapper desde Gradle 8.9 antes de compilar desde línea de comandos.
