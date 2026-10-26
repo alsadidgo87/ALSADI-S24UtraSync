@@ -1,0 +1,111 @@
+name: Compilar APK ALSADI AlarmSync
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alsadi-alarmsync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compilar:
+    name: Compilar APK Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar herramientas Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          mkdir -p "$SDK/cmdline-tools"
+          curl --fail --location --retry 3 --silent --show-error \
+            'https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip' \
+            --output "$RUNNER_TEMP/android-commandline-tools.zip"
+          mkdir -p "$RUNNER_TEMP/android-commandline-tools"
+          unzip -q "$RUNNER_TEMP/android-commandline-tools.zip" -d "$RUNNER_TEMP/android-commandline-tools"
+          rm -rf "$SDK/cmdline-tools/alsadi-latest"
+          mv "$RUNNER_TEMP/android-commandline-tools/cmdline-tools" "$SDK/cmdline-tools/alsadi-latest"
+          echo "$SDK/cmdline-tools/alsadi-latest/bin" >> "$GITHUB_PATH"
+          "$SDK/cmdline-tools/alsadi-latest/bin/sdkmanager" --version
+
+      - name: Instalar Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/alsadi-latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses > /dev/null || true
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
+            'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+
+      - name: Preparar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Validar proyecto
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+          test -f app/src/main/AndroidManifest.xml
+          gradle --version
+
+      - name: Compilar APK Debug
+        shell: bash
+        run: gradle --no-daemon --stacktrace --console=plain :app:assembleDebug
+
+      - name: Preparar instalador
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          mkdir -p salida
+          cp "$APK" salida/ALSADI-AlarmSync-S24Ultra.apk
+          sha256sum salida/*.apk
+
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALSADI-AlarmSync-APK
+          path: salida/ALSADI-AlarmSync-S24Ultra.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Guardar reporte de compilacion
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p diagnostico
+          java -version > diagnostico/java.txt 2>&1 || true
+          gradle --version > diagnostico/gradle.txt 2>&1 || true
+          find app/build -type f \( -name '*.html' -o -name '*.txt' \) -print > diagnostico/archivos.txt 2>/dev/null || true
+
+      - name: Publicar diagnostico
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALSADI-AlarmSync-Diagnostico
+          path: diagnostico/
+          if-no-files-found: ignore
