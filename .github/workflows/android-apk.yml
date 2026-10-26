@@ -1,38 +1,149 @@
+
 name: Compilar APK ALSADI AlarmSync
+
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: alarmsync-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  apk:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+  compilar-apk:
+    name: Compilar APK Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.daemon=false
+        -Dorg.gradle.jvmargs=-Xmx3g
+      JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+
     steps:
-      - name: Obtener codigo
+      - name: Descargar codigo fuente
         uses: actions/checkout@v4
+
       - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Instalar Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Instalar Android API 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
-      - name: Preparar Gradle 8.9
+
+      - name: Verificar entorno Android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          java -version
+
+          if [ -z "${ANDROID_HOME:-}" ]; then
+            echo "No se encontro ANDROID_HOME"
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          command -v sdkmanager
+          sdkmanager --version
+
+      - name: Instalar Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+          echo "SDK Android instalado correctamente"
+
+      - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Compilar APK de diagnostico
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
-      - name: Validar archivo APK
-        run: test -s app/build/outputs/apk/debug/app-debug.apk
-      - name: Guardar APK para descargar
+
+      - name: Verificar archivos del proyecto
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+          test -f app/src/main/AndroidManifest.xml
+
+          echo "Estructura Android verificada"
+
+      - name: Compilar APK Debug
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gradle \
+            --no-daemon \
+            --stacktrace \
+            --console=plain \
+            :app:assembleDebug
+
+      - name: Verificar APK generado
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -s "$APK" ]; then
+            echo "ERROR: No se genero la APK"
+            exit 1
+          fi
+
+          mkdir -p salida
+
+          cp "$APK" \
+            salida/ALSADI-AlarmSync-S24Ultra.apk
+
+          echo "APK generada:"
+          ls -lh salida/
+          sha256sum salida/*.apk
+
+      - name: Publicar APK descargable
         uses: actions/upload-artifact@v4
         with:
           name: ALSADI-AlarmSync-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: salida/*.apk
           if-no-files-found: error
           retention-days: 30
+          compression-level: 0
+
+      - name: Guardar diagnostico Gradle
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p diagnostico
+
+          java -version \
+            > diagnostico/java.txt 2>&1 || true
+
+          gradle --version \
+            > diagnostico/gradle.txt 2>&1 || true
+
+          find app/build -name "*.html" -type f \
+            -exec cp {} diagnostico/ \; \
+            2>/dev/null || true
+
+      - name: Publicar diagnostico de errores
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALSADI-AlarmSync-Diagnostico
+          path: diagnostico/
+          if-no-files-found: ignore
+          retention-days: 7
