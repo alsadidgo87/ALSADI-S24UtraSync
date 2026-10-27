@@ -8,7 +8,7 @@ import java.util.Locale
 object AlarmStore {
     private const val PREF = "alsadi_estado"
     private const val KEY_LOG = "eventos"
-    fun enabled(ctx: Context): Boolean = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE).getBoolean("activo", true)
+    fun enabled(ctx: Context): Boolean = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE).getBoolean("activo", false)
     fun setEnabled(ctx: Context, value: Boolean) = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit().putBoolean("activo", value).apply()
     fun event(ctx: Context, message: String) {
         val prefs = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)

@@ -36,10 +36,10 @@ class MainActivity : Activity() {
         fun button(t: String, action: () -> Unit) = Button(this).apply { text = t; isAllCaps = false; setOnClickListener { action() }; box.addView(this) }
         heading("ALSADI AlarmSync", 27f)
         heading("Samsung Galaxy S24 Ultra + Redmi Watch 5 Active", 15f, Color.DKGRAY)
-        heading("Mi Fitness permanece instalado y conserva el emparejamiento. Esta app NO controla Bluetooth ni instala alarmas en el reloj.", 14f, Color.DKGRAY)
+        heading("Privacidad: el acceso a notificaciones es sensible. Esta app solo filtra indicadores de Samsung Clock; no guarda mensajes ni los transmite a servidores. Mi Fitness conserva el emparejamiento y decide si reenvía avisos.", 14f, Color.DKGRAY)
         status = heading("", 15f, blue)
         val toggle = Switch(this).apply {
-            text = "Detección y retransmisión activas"
+            text = "Autorizo detección de alarmas y publicación de avisos"
             isChecked = AlarmStore.enabled(this@MainActivity)
             setOnCheckedChangeListener { _, checked -> AlarmStore.setEnabled(this@MainActivity, checked); if (!checked) AlarmRelay.stop(this@MainActivity); AlarmStore.event(this@MainActivity, "Monitor habilitado=$checked"); update() }
             box.addView(this)
@@ -60,7 +60,7 @@ class MainActivity : Activity() {
         heading("Historial de eventos", 20f)
         history = heading("", 12f, Color.DKGRAY).apply { movementMethod = ScrollingMovementMethod() }
         button("Limpiar historial") { AlarmStore.clear(this); update() }
-        heading("CONFIGURACIÓN IMPORTANTE", 17f)
+        heading("PRIVACIDAD Y CONFIGURACIÓN", 17f)
         heading("En Mi Fitness habilita las notificaciones de ALSADI AlarmSync. Desactiva restricciones de batería para Mi Fitness y AlarmSync. Ejecuta una alarma real del Samsung para comprobar si el monitor la reconoce. El resultado físico en el Redmi no puede confirmarse desde esta app.", 14f, Color.DKGRAY)
         heading("Limitaciones: no se leen alarmas programadas privadas, no se sincronizan sus horarios con el reloj, no se controla la vibración del Redmi y no se garantiza detección si Samsung no publica un aviso accesible.", 13f, Color.DKGRAY)
         setContentView(outer)

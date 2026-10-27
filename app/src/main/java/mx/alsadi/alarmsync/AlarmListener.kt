@@ -4,35 +4,38 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
-/** No lee la base de datos de Samsung Clock: sólo notificaciones expuestas por Android. */
+/** Solo examina indicadores de alarma publicados por Samsung Clock. */
 class AlarmListener : NotificationListenerService() {
-    private val sourcePackages = setOf("com.sec.android.app.clockpackage", "com.google.android.deskclock")
-    private val matching = mutableSetOf<String>()
+    private val active = mutableSetOf<String>()
+    private val clockPackage = "com.sec.android.app.clockpackage"
 
-    override fun onListenerConnected() { super.onListenerConnected(); AlarmStore.event(this, "Monitor conectado al sistema") }
-    override fun onListenerDisconnected() { matching.clear(); AlarmStore.event(this, "Monitor desconectado") }
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        AlarmStore.event(this, "Monitor conectado; los avisos requieren consentimiento")
+    }
+
+    override fun onListenerDisconnected() {
+        active.clear()
+        AlarmRelay.stop(this)
+        AlarmStore.event(this, "Monitor desconectado")
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (sbn.packageName !in sourcePackages || !AlarmStore.enabled(this)) return
+        if (!AlarmStore.enabled(this) || sbn.packageName != clockPackage) return
         val n = sbn.notification
-        val title = n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val body = n.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
-        val isAlarm = n.category == Notification.CATEGORY_ALARM ||
-            (n.fullScreenIntent != null && n.category != Notification.CATEGORY_CALL)
-        // Un encabezado tipo 'Próxima alarma' NO se interpreta como alarma en curso.
-        if (!isAlarm) {
-            AlarmStore.event(this, "Notificación observada (no verificada como alarma activa): ${sbn.packageName}: ${title.take(50)}")
-            return
+        // No registrar ni retransmitir el contenido original de notificaciones.
+        // La categoría indica una posible alarma, no garantiza que esté sonando.
+        if (n.category != Notification.CATEGORY_ALARM) return
+        if (active.add(sbn.key) && active.size == 1) {
+            AlarmRelay.relay(this, clockPackage, "Posible alarma activa del Samsung")
+            AlarmStore.event(this, "Aviso de alarma detectado; entrega al reloj no confirmada")
         }
-        val wasEmpty = matching.isEmpty()
-        matching.add(sbn.key)
-        AlarmStore.event(this, "Candidato de alarma activa: ${sbn.packageName}; categoría=${n.category}")
-        if (wasEmpty) AlarmRelay.relay(this, sbn.packageName, listOf(title, body).filter { it.isNotBlank() }.joinToString(" · "))
     }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        if (matching.remove(sbn.key)) {
-            AlarmStore.event(this, "Notificación de alarma retirada: ${sbn.packageName}")
-            if (matching.isEmpty()) AlarmRelay.stop(this)
+        if (active.remove(sbn.key) && active.isEmpty()) {
+            AlarmRelay.stop(this)
+            AlarmStore.event(this, "Aviso de alarma finalizado")
         }
     }
 }
